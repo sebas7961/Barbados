@@ -18,7 +18,9 @@ export function useRealtimeAgenda(initialCitas: Cita[] = []) {
       })
     })
 
-    return unsubscribe
+    return () => {
+      unsubscribe()
+    }
   }, [])
 
   return citas
