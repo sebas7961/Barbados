@@ -34,9 +34,35 @@ async function sendViaTwilio({ to, body, template, params }: SendMessageOptions)
   })
 }
 
-async function sendViaMeta(_opts: SendMessageOptions) {
-  // TODO: implementar con la API de Meta Cloud para producción
-  throw new Error("Meta provider no implementado aún")
+async function sendViaMeta({ to, body, template, params }: SendMessageOptions) {
+  const text = body ?? buildTemplateText(template, params ?? [])
+
+  const response = await fetch(
+    `https://graph.facebook.com/v25.0/${process.env.META_WA_PHONE_NUMBER_ID}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.META_WA_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: to.replace('whatsapp:', ''), // limpia el prefijo si viene de Twilio
+        type: 'text',
+        text: { body: text },
+      }),
+    }
+  )
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    console.error('❌ Error Meta:', data)
+    throw new Error(data.error?.message || 'Error desconocido de Meta')
+  }
+
+  console.log('✅ Mensaje enviado por Meta:', data)
+  return data
 }
 
 function buildTemplateText(template: string, params: string[]): string {
