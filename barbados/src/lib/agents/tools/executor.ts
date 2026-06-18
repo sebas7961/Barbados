@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { createServiceClient } from '@/lib/supabase/server'
 
 export async function executeTool(name: string, args: Record<string, unknown>): Promise<unknown> {
     console.log(`🔧 Tool: ${name}`, args)
@@ -23,13 +18,13 @@ export async function executeTool(name: string, args: Record<string, unknown>): 
 }
 
 async function verHorariosDisponibles(args: Record<string, unknown>) {
+    const supabase = createServiceClient()
     const { empleado_id, fecha, servicio_id } = args as {
         empleado_id?: string
         fecha: string
         servicio_id: string
     }
 
-    // 1. Obtener duración del servicio y configuración
     const [{ data: servicio }, { data: config }] = await Promise.all([
         supabase.from('servicios').select('duracion_base_minutos').eq('id', servicio_id).single(),
         supabase.from('configuracion').select('*').single()
@@ -41,7 +36,6 @@ async function verHorariosDisponibles(args: Record<string, unknown>) {
     const buffer = config.margen_colchon_minutos
     const bloque = duracion + buffer
 
-    // 2. Obtener citas del día para ese barbero
     const inicio_dia = `${fecha}T00:00:00`
     const fin_dia = `${fecha}T23:59:59`
 
@@ -56,7 +50,6 @@ async function verHorariosDisponibles(args: Record<string, unknown>) {
 
     const { data: citasDelDia } = await query
 
-    // 3. Generar slots disponibles en los dos bloques horarios
     const slots: string[] = []
     const bloques = [
         { apertura: config.hora_apertura_manana, cierre: config.hora_cierre_manana },
@@ -70,7 +63,6 @@ async function verHorariosDisponibles(args: Record<string, unknown>) {
         while (new Date(current.getTime() + duracion * 60000) <= cierre) {
             const fin_slot = new Date(current.getTime() + duracion * 60000)
 
-            // Verificar que el slot no choca con ninguna cita
             const hayConflicto = citasDelDia?.some(cita => {
                 const citaInicio = new Date(cita.fecha_hora_inicio)
                 const citaFin = new Date(cita.fecha_hora_fin)
@@ -78,7 +70,7 @@ async function verHorariosDisponibles(args: Record<string, unknown>) {
             })
 
             if (!hayConflicto) {
-                slots.push(current.toTimeString().slice(0, 5)) // HH:MM
+                slots.push(current.toTimeString().slice(0, 5))
             }
 
             current = new Date(current.getTime() + bloque * 60000)
@@ -89,6 +81,7 @@ async function verHorariosDisponibles(args: Record<string, unknown>) {
 }
 
 async function crearCita(args: Record<string, unknown>) {
+    const supabase = createServiceClient()
     const { nombre_cliente, telefono_cliente, empleado_id, servicio_id, inicio } = args as {
         nombre_cliente: string
         telefono_cliente: string
@@ -97,14 +90,13 @@ async function crearCita(args: Record<string, unknown>) {
         inicio: string
     }
 
-    // 1. Buscar o crear cliente
     let cliente_id: string
 
     const { data: clienteExistente } = await supabase
         .from('clientes')
         .select('id')
         .eq('telefono', telefono_cliente)
-        .single()
+        .maybeSingle()
 
     if (clienteExistente) {
         cliente_id = clienteExistente.id
@@ -119,7 +111,6 @@ async function crearCita(args: Record<string, unknown>) {
         cliente_id = nuevoCliente.id
     }
 
-    // 2. Obtener duración del servicio
     const { data: servicio } = await supabase
         .from('servicios')
         .select('duracion_base_minutos')
@@ -131,7 +122,6 @@ async function crearCita(args: Record<string, unknown>) {
     const fecha_hora_inicio = new Date(inicio)
     const fecha_hora_fin = new Date(fecha_hora_inicio.getTime() + servicio.duracion_base_minutos * 60000)
 
-    // 3. Crear la cita
     const { data: cita, error } = await supabase
         .from('citas')
         .insert({
@@ -156,6 +146,7 @@ async function crearCita(args: Record<string, unknown>) {
 }
 
 async function reprogramarCita(args: Record<string, unknown>) {
+    const supabase = createServiceClient()
     const { cita_id, nuevo_inicio } = args as { cita_id: string; nuevo_inicio: string }
 
     const { data: cita } = await supabase
@@ -189,6 +180,7 @@ async function reprogramarCita(args: Record<string, unknown>) {
 }
 
 async function cancelarCita(args: Record<string, unknown>) {
+    const supabase = createServiceClient()
     const { cita_id } = args as { cita_id: string }
 
     const { error } = await supabase
