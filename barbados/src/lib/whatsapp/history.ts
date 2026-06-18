@@ -17,6 +17,8 @@ export async function getHistory(telefono: string): Promise<MensajeChat[]> {
 }
 
 export async function saveHistory(telefono: string, mensajes: MensajeChat[]) {
+    console.log('🔑 Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30))
+    console.log('🔑 Service key existe:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
     const { error } = await supabase
         .from('conversaciones')
         .upsert(
