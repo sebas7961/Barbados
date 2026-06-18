@@ -17,18 +17,26 @@ export async function getHistory(telefono: string): Promise<MensajeChat[]> {
 }
 
 export async function saveHistory(telefono: string, mensajes: MensajeChat[]) {
-    console.log('🔑 Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30))
-    console.log('🔑 Service key existe:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
-    const { error } = await supabase
+    const { data: existing } = await supabase
         .from('conversaciones')
-        .upsert(
-            { telefono, mensajes, updated_at: new Date().toISOString() },
-            { onConflict: 'telefono' }
-        )
+        .select('id')
+        .eq('telefono', telefono)
+        .maybeSingle()
 
-    if (error) {
-        console.error('❌ Error guardando historial:', error)
+    if (existing) {
+        const { error } = await supabase
+            .from('conversaciones')
+            .update({ mensajes, updated_at: new Date().toISOString() })
+            .eq('telefono', telefono)
+
+        if (error) console.error('❌ Error actualizando historial:', error)
+        else console.log('✅ Historial actualizado para:', telefono)
     } else {
-        console.log('✅ Historial guardado para:', telefono)
+        const { error } = await supabase
+            .from('conversaciones')
+            .insert({ telefono, mensajes })
+
+        if (error) console.error('❌ Error insertando historial:', error)
+        else console.log('✅ Historial creado para:', telefono)
     }
 }
