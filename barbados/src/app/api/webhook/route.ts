@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/provider';
 import { runConversationalAgent } from '@/lib/agents/conversational';
+import { getHistory, saveHistory } from '@/lib/whatsapp/history';
 
 const VERIFY_TOKEN = 'BarbadosToken2026';
 
@@ -30,12 +31,23 @@ export async function POST(request: Request) {
 
         console.log(`📨 Mensaje de ${from}: ${text}`);
 
-        // Llamar al agente (sin historial por ahora — Fase 2 lo agrega)
-        const reply = await runConversationalAgent({ from, message: text, history: [] });
+        // 1. Obtener historial de conversación
+        const history = await getHistory(from);
 
+        // 2. Llamar al agente con historial
+        const reply = await runConversationalAgent({ from, message: text, history });
+
+        // 3. Guardar historial actualizado
+        await saveHistory(from, [
+            ...history,
+            { role: 'user', content: text },
+            { role: 'assistant', content: reply },
+        ]);
+
+        // 4. Responder al cliente
         await sendWhatsAppMessage({ to: from, body: reply, template: '' });
 
-        console.log(`✅ Respuesta enviada: ${reply}`);
+        console.log(`✅ Respuesta: ${reply}`);
 
         return NextResponse.json({ success: true }, { status: 200 });
     } catch (error) {

@@ -1,6 +1,7 @@
 import Groq from 'groq-sdk'
 import { SYSTEM_PROMPT } from "./prompt"
 import { AGENT_TOOLS } from "./tools"
+import { executeTool } from "@/lib/agents/tools/executor"
 import type { MensajeChat } from "@/types"
 
 interface AgentInput {
@@ -29,7 +30,6 @@ async function runWithGroq(messages: MensajeChat[]): Promise<string> {
     ...messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
   ]
 
-  // Primera llamada — el LLM decide si usar una tool o responder directo
   const response = await groq.chat.completions.create({
     model: 'llama-3.3-70b-versatile',
     messages: formattedMessages,
@@ -43,14 +43,12 @@ async function runWithGroq(messages: MensajeChat[]): Promise<string> {
 
   const choice = response.choices[0]
 
-  // Si el LLM quiere ejecutar una tool
   if (choice.finish_reason === 'tool_calls' && choice.message.tool_calls) {
     const toolCall = choice.message.tool_calls[0]
     const toolResult = await executeTool(toolCall.function.name, JSON.parse(toolCall.function.arguments))
 
-    // Segunda llamada con el resultado de la tool
     const finalResponse = await groq.chat.completions.create({
-      model: 'llama-3.1-70b-versatile',
+      model: 'llama-3.3-70b-versatile',
       messages: [
         ...formattedMessages,
         choice.message,
@@ -63,30 +61,4 @@ async function runWithGroq(messages: MensajeChat[]): Promise<string> {
   }
 
   return choice.message.content ?? 'Lo siento, hubo un error.'
-}
-
-// Ejecutor de tools — stubs que conectaremos a Supabase en Fase 2
-async function executeTool(name: string, args: Record<string, unknown>): Promise<unknown> {
-  console.log(`🔧 Ejecutando tool: ${name}`, args)
-
-  switch (name) {
-    case 'verHorariosDisponibles':
-      // TODO: consultar Supabase
-      return { slots: ['10:00', '11:00', '15:00', '16:00'], fecha: args.fecha }
-
-    case 'crearCita':
-      // TODO: insertar en Supabase
-      return { success: true, mensaje: `Cita creada para ${args.nombre_cliente} a las ${args.inicio}` }
-
-    case 'reprogramarCita':
-      // TODO: actualizar en Supabase
-      return { success: true, mensaje: 'Cita reprogramada correctamente' }
-
-    case 'cancelarCita':
-      // TODO: eliminar de Supabase
-      return { success: true, mensaje: 'Cita cancelada correctamente' }
-
-    default:
-      return { error: 'Tool no encontrada' }
-  }
 }
