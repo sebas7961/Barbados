@@ -17,10 +17,16 @@ export async function getHistory(telefono: string): Promise<MensajeChat[]> {
 }
 
 export async function saveHistory(telefono: string, mensajes: MensajeChat[]) {
-    await supabase
+    const { error } = await supabase
         .from('conversaciones')
         .upsert(
             { telefono, mensajes, updated_at: new Date().toISOString() },
             { onConflict: 'telefono' }
         )
+
+    if (error) {
+        console.error('❌ Error guardando historial:', error)
+    } else {
+        console.log('✅ Historial guardado para:', telefono)
+    }
 }
