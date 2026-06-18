@@ -31,7 +31,7 @@ async function runWithGroq(messages: MensajeChat[]): Promise<string> {
 
   // Primera llamada — el LLM decide si usar una tool o responder directo
   const response = await groq.chat.completions.create({
-    model: 'llama-3.1-70b-versatile',
+    model: 'llama-3.3-70b-versatile',
     messages: formattedMessages,
     tools: AGENT_TOOLS.map(tool => ({
       type: 'function' as const,
