@@ -21,13 +21,29 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+        if (!message) return NextResponse.json({ success: true }, { status: 200 })
 
-        if (!message || message.type !== 'text') {
-            return NextResponse.json({ success: true }, { status: 200 });
+        const from: string = message.from
+        let text: string = ''
+
+        if (message.type === 'text') {
+            text = message.text.body
+
+        } else if (message.type === 'interactive') {
+            const reply = message.interactive?.list_reply
+            const id: string = reply?.id ?? ''
+
+            if (id === 'fecha_otra') {
+                text = 'El cliente quiere una fecha distinta, pídele que la escriba.'
+            } else if (id.startsWith('fecha_')) {
+                const fecha = id.replace('fecha_', '')
+                text = `El cliente eligió la fecha ${fecha}. Consulta disponibilidad y muéstrale los horarios.`
+            } else {
+                text = reply?.title ?? ''
+            }
+        } else {
+            return NextResponse.json({ success: true }, { status: 200 })
         }
-
-        const from: string = message.from;
-        const text: string = message.text.body;
 
         console.log(`📨 Mensaje de ${from}: ${text}`);
 

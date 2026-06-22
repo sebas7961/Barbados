@@ -53,4 +53,18 @@ export const AGENT_TOOLS = [
       required: ["cita_id"],
     },
   },
+  {
+    name: 'mostrarSelectorFecha',
+    description: 'Muestra al cliente un selector visual de fechas por WhatsApp. Úsala SIEMPRE que el cliente quiera agendar y aún no haya elegido fecha.',
+    parameters: {
+      type: 'object',
+      properties: {
+        telefono: {
+          type: 'string',
+          description: 'Número de teléfono del cliente (el campo "from" del mensaje)'
+        }
+      },
+      required: ['telefono']
+    }
+  },
 ]
