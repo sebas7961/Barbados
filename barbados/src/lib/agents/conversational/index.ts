@@ -96,7 +96,7 @@ async function runWithGroq(messages: MensajeChat[]): Promise<string> {
   ]
 
   const response = await groq.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    model: 'moonshotai/kimi-k2-instruct',
     messages: formattedMessages,
     tools: AGENT_TOOLS.map(tool => ({
       type: 'function' as const,
